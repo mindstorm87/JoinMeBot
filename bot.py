@@ -420,23 +420,30 @@ async def cancel(message: Message) -> None:
 
 @router.message(Command("stats"))
 async def stats(message: Message) -> None:
-     if message.from_user.id != ADMIN_ID:
+    if message.from_user.id != ADMIN_ID:
         return
+
     async with aiosqlite.connect(DB_PATH) as db:
         counts = {}
         for name, query in {
             "users": "SELECT COUNT(*) FROM users",
             "open_sessions": "SELECT COUNT(*) FROM open_sessions",
-            "active_now": "SELECT COUNT(*) FROM open_sessions WHERE active=1 AND available_until > datetime('now')",
+            "active_now": "SELECT COUNT(*) FROM open_sessions WHERE active=1 AND available_until > ?",
             "waves": "SELECT COUNT(*) FROM waves",
             "accepted_waves": "SELECT COUNT(*) FROM waves WHERE status='accepted'",
             "meetings": "SELECT COUNT(*) FROM meetings",
             "confirmed_meetings": "SELECT COUNT(*) FROM meetings WHERE happened='yes'",
         }.items():
-            async with db.execute(query) as cursor:
-                counts[name] = (await cursor.fetchone())[0]
+            if name == "active_now":
+                async with db.execute(query, (dt_to_str(utcnow()),)) as cursor:
+                    counts[name] = (await cursor.fetchone())[0]
+            else:
+                async with db.execute(query) as cursor:
+                    counts[name] = (await cursor.fetchone())[0]
+
         async with db.execute("SELECT AVG(rating) FROM meetings WHERE rating IS NOT NULL") as cursor:
             avg = (await cursor.fetchone())[0]
+
     await message.answer(
         "📊 JoinMe Validation Metrics\n\n"
         f"Users: {counts['users']}\n"
@@ -446,7 +453,7 @@ async def stats(message: Message) -> None:
         f"Accepted waves: {counts['accepted_waves']}\n"
         f"Meetings created: {counts['meetings']}\n"
         f"Confirmed meetings: {counts['confirmed_meetings']}\n"
-        f"Average rating: {avg or 'n/a'}"
+        f"Average rating: {round(avg, 2) if avg else 'n/a'}"
     )
 
 
