@@ -22,9 +22,10 @@ from aiogram.types import (
 load_dotenv()
 
 BOT_TOKEN = os.getenv("BOT_TOKEN")
+ADMIN_ID = int(os.getenv("ADMIN_ID", "906154697"))
 CITY_NAME = os.getenv("CITY_NAME", "Tallinn")
-MATCH_RADIUS_KM = float(os.getenv("MATCH_RADIUS_KM", "2.0"))
-OPEN_TALK_TTL_MINUTES = int(os.getenv("OPEN_TALK_TTL_MINUTES", "90"))
+MATCH_RADIUS_KM = float(os.getenv("MATCH_RADIUS_KM", "1.0"))
+OPEN_TALK_TTL_MINUTES = int(os.getenv("OPEN_TALK_TTL_MINUTES", "30"))
 DB_PATH = os.getenv("DB_PATH", "joinme.db")
 
 if not BOT_TOKEN:
@@ -419,6 +420,8 @@ async def cancel(message: Message) -> None:
 
 @router.message(Command("stats"))
 async def stats(message: Message) -> None:
+     if message.from_user.id != ADMIN_ID:
+        return
     async with aiosqlite.connect(DB_PATH) as db:
         counts = {}
         for name, query in {
